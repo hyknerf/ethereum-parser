@@ -11,20 +11,21 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
-type BlockObserver struct {
+type BlockNumberObserver struct {
 	ctx            context.Context
-	newBlockStream chan<- string
+	newBlockStream chan<- int64
 	store          store.Storer
 	httpClient     *http.Client
 	interval       time.Duration
 }
 
-func NewBlockObserver(ctx context.Context, newBlockStream chan<- string, store store.Storer, httpClient *http.Client, interval time.Duration) *BlockObserver {
-	return &BlockObserver{
+func NewBlockNumberObserver(ctx context.Context, newBlockStream chan<- int64, store store.Storer, httpClient *http.Client, interval time.Duration) *BlockNumberObserver {
+	return &BlockNumberObserver{
 		ctx:            ctx,
 		newBlockStream: newBlockStream,
 		store:          store,
@@ -33,7 +34,7 @@ func NewBlockObserver(ctx context.Context, newBlockStream chan<- string, store s
 	}
 }
 
-func (o *BlockObserver) Work(wg *sync.WaitGroup) {
+func (o *BlockNumberObserver) Work(wg *sync.WaitGroup) {
 	ticker := time.NewTicker(o.interval)
 
 	wg.Add(1)
@@ -44,7 +45,7 @@ func (o *BlockObserver) Work(wg *sync.WaitGroup) {
 			case <-o.ctx.Done():
 				return
 			case <-ticker.C:
-				log.Println("fetching latest block number... ")
+				log.Println("fetching latest block number")
 				baseReq := types.BaseRequest{
 					JsonRPC: types.JsonRPCVersion,
 					Method:  types.MethodEthBlockNumber,
@@ -69,16 +70,14 @@ func (o *BlockObserver) Work(wg *sync.WaitGroup) {
 				_ = res.Body.Close()
 
 				if baseRes.Error != nil {
-					log.Fatal(baseRes.Error.Message)
+					log.Fatal(baseRes.Error)
 				}
 
 				n := new(big.Int)
-				n.SetString(baseRes.Result.(string), 0)
-
-				log.Printf("fetched latest block number: %s (%s)", n.String(), baseRes.Result.(string))
+				n.SetString(strings.Trim(string(baseRes.Result), "\""), 0)
 
 				if lastBLock := o.store.GetLastBlockNumber(); lastBLock > n.Int64() || lastBLock != n.Int64() {
-					o.newBlockStream <- baseRes.Result.(string)
+					o.newBlockStream <- n.Int64()
 					o.store.SaveLastBlockNumber(n.Int64())
 				}
 			}

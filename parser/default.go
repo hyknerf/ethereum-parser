@@ -1,17 +1,11 @@
-package types
+package parser
 
 import (
 	"github.com/hyknerf/ethereum-parser/store"
+	"github.com/hyknerf/ethereum-parser/types"
 	"log"
 	"net/http"
 	"time"
-)
-
-const (
-	Host           = "https://cloudflare-eth.com"
-	JsonRPCVersion = "2.0"
-
-	MethodEthBlockNumber = "eth_blockNumber"
 )
 
 type DefaultParser struct {
@@ -38,12 +32,14 @@ func (dp *DefaultParser) GetCurrentBlock() int {
 
 func (dp *DefaultParser) Subscribe(address string) bool {
 	if err := dp.store.AddObservedAddress(address); err != nil {
-		log.Fatal("failed to add address to observed addresses", err)
 		return false
 	}
+
+	log.Println("observed address:", address)
 	return true
 }
 
-func (dp *DefaultParser) GetTransactions(address string) []Transaction {
-	return nil
+func (dp *DefaultParser) GetTransactions(address string) []*types.TransactionReceipt {
+	res := dp.store.GetTransactions(address)
+	return res
 }
