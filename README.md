@@ -1,7 +1,13 @@
 # Simple Ethereum Parse
 ## How to Run
 ### Build
-
+#### Go Version
+```shell
+go version
+```
+```text
+go version go1.22.1 darwin/arm64
+```
 ```shell
 go build -o build/server
 ```
